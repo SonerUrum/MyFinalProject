@@ -16,7 +16,7 @@ namespace DataAccess.Concrete.EntityFramework
 
         public void Delete(Product entity)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException(); 
         }
 
         public Product Get(Expression<Func<Product, bool>> filter)
