@@ -3,6 +3,9 @@ using Business.BusinessAspects.Autofac;
 using Business.CCS;
 using Business.Constants;
 using Business.ValidationRules.FluentValidation;
+using Core.Aspects.Autofac.Caching;
+using Core.Aspects.Autofac.Performance;
+using Core.Aspects.Autofac.Transaction;
 using Core.Aspects.Autofac.Validation;
 using Core.CrossCuttingConcerns.Validation;
 using Core.Utilities.Business;
@@ -23,13 +26,17 @@ namespace Business.Concrete
         IProductDal _productDal;
         ICategoryService _categoryService;
 
+
         public ProductManager(IProductDal productDal, ICategoryService categoryService)
         {
             _productDal = productDal;
             _categoryService = categoryService;
         }
+
+
         [SecuredOperation("product.add,admin")]
         [ValidationAspect(typeof(ProductValidator))]
+        [CacheRemoveAspect("IProductService.Get")]
         public IResult Add(Product product)
         {
            IResult result = BusinessRules.Run(CheckIfProductNameExists(product.ProductName),
@@ -45,8 +52,10 @@ namespace Business.Concrete
             return new SuccessResult(Messages.ProductAdded);
         }
 
+
+        [CacheAspect]
         public IDataResult<List<Product>> GetAll()
-        {      //bilgisayar saati 22 ise bu if bloğuna girer.
+        {      //bilgisayar saati 20 ise bu if bloğuna girer.
             if (DateTime.Now.Hour == 20)
             {                                                     //MaintenanceTime = bakım zamanı
                 return new ErrorDataResult<List<Product>>(Messages.MaintenanceTime);
@@ -54,25 +63,45 @@ namespace Business.Concrete
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(),Messages.ProductsListed);
         }
 
+
         public IDataResult<List<Product>> GetAllByCategoryId(int id)
         {                             //her p için categoryıd gönderdiğim id'ye eşitse onları filtrele
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(p => p.CategoryId == id));
         }
 
+
+        [CacheAspect]
+       // [PerformanceAspect(5)]
         public IDataResult<Product> GetById(int productId)
         {
             return new SuccessDataResult<Product>(_productDal.Get(p => p.ProductId == productId));
         }
+
 
         public IDataResult<List<Product>> GetByUnitPrice(decimal min, decimal max)
         {
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(p => p.UnitPrice >= min && p.UnitPrice <= max));
         }
 
+
         public IDataResult<List<ProductDetailDTo>> GetProductDetails()
         {
             return new SuccessDataResult<List<ProductDetailDTo>> (_productDal.GetProductDetails());
         }
+
+
+        [ValidationAspect(typeof(ProductValidator))]
+        [CacheRemoveAspect("IProductService.Get")]
+        public IResult Update(Product product)
+        {
+            var result = _productDal.GetAll(p => p.CategoryId == product.CategoryId).Count;
+            if (result >= 10)
+            {
+                return new ErrorResult(Messages.ProductCountOfCategoryError);
+            }
+            throw new NotImplementedException();
+        }
+
 
         private IResult CheckIfProductCountOfCategoryCorrent(int categoryId)
         {
@@ -83,6 +112,8 @@ namespace Business.Concrete
             }
             return new SuccessResult();
         }
+
+
         private IResult CheckIfProductNameExists(string productName)
         {
             var result = _productDal.GetAll(p => p.ProductName == productName).Any();
@@ -92,6 +123,8 @@ namespace Business.Concrete
             }
             return new SuccessResult();
         }
+
+
         private IResult CheckIfCategoryLimitExceded()
         {
             var result = _categoryService.GetAll();
@@ -102,6 +135,19 @@ namespace Business.Concrete
             }
             return new SuccessResult();
 
+        }
+
+
+        [TransactionScopeAspect]
+        public IResult AddTransactionalTest(Product product)
+        {
+            Add(product);
+            if (product.UnitPrice < 10)
+            {
+                throw new Exception("");
+            }
+            Add(product);
+            return null;
         }
     }
 }
