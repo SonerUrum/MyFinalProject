@@ -34,7 +34,7 @@ namespace Business.Concrete
         }
 
 
-        [SecuredOperation("product.add,admin")]
+       // [SecuredOperation("product.add,admin")]
         [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect("IProductService.Get")]
         public IResult Add(Product product)
@@ -55,8 +55,8 @@ namespace Business.Concrete
 
         [CacheAspect]
         public IDataResult<List<Product>> GetAll()
-        {      //bilgisayar saati 20 ise bu if bloğuna girer.
-            if (DateTime.Now.Hour == 20)
+        {      //bilgisayar saati 5 ise bu if bloğuna girer.
+            if (DateTime.Now.Hour == 5)
             {                                                     //MaintenanceTime = bakım zamanı
                 return new ErrorDataResult<List<Product>>(Messages.MaintenanceTime);
             }
